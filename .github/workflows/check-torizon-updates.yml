@@ -1,0 +1,41 @@
+name: check Torizon updates
+
+on:
+  schedule:
+      - cron: '0 6 * * 1' # Run every monday at 6:00 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+    check-torizon-bsp-updates-for-ti-boards:
+      uses: ./.github/workflows/check-torizon-bsp-updates.yml
+      with:
+        manufacturer: ti
+      secrets:
+        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+
+    check-torizon-core-updates-for-ti-boards:
+      uses: ./.github/workflows/check-torizon-core-builder-updates.yml
+      with:
+        manufacturer: ti
+      secrets:
+        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+      needs: [check-torizon-bsp-updates-for-ti-boards]
+
+    check-torizon-bsp-updates-for-nxp-boards:
+      uses: ./.github/workflows/check-torizon-bsp-updates.yml
+      with:
+        manufacturer: nxp
+      secrets:
+        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+      needs: [check-torizon-bsp-updates-for-ti-boards, check-torizon-core-updates-for-ti-boards]
+
+    check-torizon-core-updates-for-nxp-boards:
+      uses: ./.github/workflows/check-torizon-core-builder-updates.yml
+      with:
+        manufacturer: nxp
+      secrets:
+        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+      needs: [check-torizon-bsp-updates-for-ti-boards, check-torizon-core-updates-for-ti-boards, check-torizon-bsp-updates-for-nxp-boards]
