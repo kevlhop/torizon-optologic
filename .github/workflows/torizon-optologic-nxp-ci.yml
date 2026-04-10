@@ -51,6 +51,13 @@ jobs:
           source tcbdir/tcb-env-setup.sh -t ${TORIZON_CORE_BUILDER_VERSION}
           docker run --rm -v /deploy -v "$(pwd)":/workdir -v storage:/storage -v /var/run/docker.sock:/var/run/docker.sock --network=host $(tcb_dynamic_params) torizon/torizoncore-builder:${TORIZON_CORE_BUILDER_VERSION} build --force --file ${{ matrix.machine }}_optologic_panel-cap-touch-${{ matrix.display }}-lvds.yaml
 
+      - name: Archive torizon artifacts
+        uses: actions/upload-artifact@v7
+        with:
+            name: ${{ matrix.machine }}-${{ matrix.display }}-artifacts
+            path: build/torizon_${{ matrix.machine }}_optologic_panel-cap-touch-${{ matrix.display }}-lvds_Tezi_*
+            archive: true
+
       - name: Cleanup workspace
         if: always()
         # Use a privileged container to cleanup root-owned files from torizoncore-builder
