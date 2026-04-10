@@ -3,7 +3,7 @@ name: Torizon TI Optologic CI
 on:
   push:
     branches:
-      - '*-ti-*'
+      - '**-ti-**'
   workflow_dispatch:
 
 permissions:
