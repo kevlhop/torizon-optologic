@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 TORADEX_BRANCH="scarthgap-7.x.y"
-LINUX_RECIPE="linux-toradex_6.6-2.2.x.bb"
+LINUX_RECIPE_NAME="linux-toradex"
 
 latest_stable_tag=$(git ls-remote --tags https://git.toradex.com/toradex-manifest.git \
     | awk -F/ '{print $NF}' | sort -V | tail -n 1) || {
@@ -50,6 +50,13 @@ if [ "$latest_stable_tag" != "$current_tag" ]; then
         echo -e "Failed to fetch the meta-toradex-nxp commit hash from the Toradex manifest repository.\n"
         exit 1
     }
+
+    URL="https://git.toradex.com/meta-toradex-nxp.git/tree/recipes-kernel/linux?id=$meta_toradex_nxp_commit"
+    LINUX_RECIPE=$(curl -fsSL "$URL" | grep -o $LINUX_RECIPE_NAME'_[^<"]*\.bb' | cut -d'?' -f1 | sort -u | sort -V | tail -n1) || {
+        echo -e "Failed to fetch the linux-toradex recipe name from the meta-toradex-nxp repository.\n"
+        exit 1
+    }
+
 
     URL="https://git.toradex.com/meta-toradex-nxp.git/tree/recipes-kernel/linux/$LINUX_RECIPE?id=$meta_toradex_nxp_commit"
     linux_toradex_nxp_commit=$(curl -fsSL "$URL" | awk -F'"' '/^SRCREV_machine/ {print $2; exit}') || {
