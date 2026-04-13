@@ -9,33 +9,67 @@ permissions:
   contents: read
 
 jobs:
-    check-torizon-bsp-updates-for-ti-boards:
-      uses: ./.github/workflows/check-torizon-bsp-updates.yml
-      with:
-        manufacturer: ti
-      secrets:
-        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
+  check-torizon-updates:
+    name: Check Torizon updates
+    runs-on: [self-hosted]
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        manufacturer: [ti, nxp]
 
-    check-torizon-core-updates-for-ti-boards:
-      uses: ./.github/workflows/check-torizon-core-builder-updates.yml
-      with:
-        manufacturer: ti
-      secrets:
-        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
-      needs: [check-torizon-bsp-updates-for-ti-boards]
+    steps:
+      - name: Checkout torizon-optologic
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+          ref: 'torizon-${{ matrix.manufacturer }}-7.x.y'
 
-    check-torizon-bsp-updates-for-nxp-boards:
-      uses: ./.github/workflows/check-torizon-bsp-updates.yml
-      with:
-        manufacturer: nxp
-      secrets:
-        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
-      needs: [check-torizon-bsp-updates-for-ti-boards, check-torizon-core-updates-for-ti-boards]
+      - name: Check for toradex revision updates
+        id: check-for-toradex-revision-updates
+        run: |
+            set +e
+            .github/scripts/check-toradex-revision-updates.sh
+            exit_code="$?"
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+            if [[ $exit_code -eq 1 ]]; then
+                exit 1
+            fi
 
-    check-torizon-core-updates-for-nxp-boards:
-      uses: ./.github/workflows/check-torizon-core-builder-updates.yml
-      with:
-        manufacturer: nxp
-      secrets:
-        auto_update_token: ${{ secrets.AUTO_UPDATE_TOKEN }}
-      needs: [check-torizon-bsp-updates-for-ti-boards, check-torizon-core-updates-for-ti-boards, check-torizon-bsp-updates-for-nxp-boards]
+      - name: Check for torizon core builder updates
+        run: |
+            set +e
+            .github/scripts/check-torizon-core-builder-updates.sh
+            exit_code="$?"
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+            if [[ $exit_code -eq 1 ]]; then
+                exit 1
+            fi
+
+      -  name: Check for closed pull request on the torizon-${{ matrix.manufacturer }}-update/${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} branch
+         if: steps.check-for-toradex-revision-updates.outputs.exit_code == '2'
+         id: find-torizon-update-pull-request
+         uses: juliangruber/find-pull-request-action@v1
+         with:
+           state: closed
+           branch: torizon-${{ matrix.manufacturer }}-update/${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}}
+
+      - name: Open a pull request with the updated torizon
+        if: steps.check-for-toradex-revision-updates.outputs.exit_code == '2' && steps.find-revision-pull-request.outputs.matching-pr-count == 0
+        id: cpr-bsp
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.auto_update_token }}
+          commit-message: ".github:workflows: update to Toradex revision ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version"
+          title: "${{ matrix.manufacturer }}: Update Toradex revision to the ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version"
+          body: This pull request updates the Toradex revision to the ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version and the corresponding Torizon Core Builder version.
+          branch: toradex-${{ matrix.manufacturer }}-manifest-update/${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}}
+          signoff: true
+
+      - name: Output pull request details
+        if: ${{ steps.cpr-bsp.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr-bsp.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr-bsp.outputs.pull-request-url }}"
