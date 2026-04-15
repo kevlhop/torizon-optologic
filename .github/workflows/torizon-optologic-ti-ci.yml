@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout torizon-optologic
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Cloning the submodules is super slow, but we don't cleanup the git repository, so they are kept on our self-hosted runner
           submodules: 'recursive'
