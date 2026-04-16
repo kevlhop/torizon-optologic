@@ -56,6 +56,14 @@ jobs:
            state: closed
            branch: torizon-${{ matrix.manufacturer }}-update/${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}}
 
+      - name: Read PR template
+        if: steps.check-for-toradex-revision-updates.outputs.exit_code == '2' && steps.find-torizon-update-pull-request.outputs.matching-pr-count == 0
+        id: pr_template
+        run: |
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat .github/pull_request_template.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Open a pull request with the updated torizon
         if: steps.check-for-toradex-revision-updates.outputs.exit_code == '2' && steps.find-revision-pull-request.outputs.matching-pr-count == 0
         id: cpr-bsp
@@ -64,7 +72,10 @@ jobs:
           token: ${{ secrets.auto_update_token }}
           commit-message: ".github:workflows: update to Toradex revision ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version"
           title: "${{ matrix.manufacturer }}: Update Toradex revision to the ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version"
-          body: This pull request updates the Toradex revision to the ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version and the corresponding Torizon Core Builder version.
+          body: |
+              # Description
+              This pull request updates the Toradex revision to the ${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}} version and the corresponding Torizon Core Builder version.
+              ${{ steps.pr_template.outputs.body }}
           branch: toradex-${{ matrix.manufacturer }}-manifest-update/${{steps.check-for-toradex-revision-updates.outputs.latest_stable_tag}}
           signoff: true
 
